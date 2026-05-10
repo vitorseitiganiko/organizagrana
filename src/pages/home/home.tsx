@@ -27,7 +27,7 @@ import { addDoc, collection, deleteDoc, doc, getDocs } from 'firebase/firestore'
 import { db } from '../../firebase';
 import { useCallback, useEffect, useState } from 'react';
 import { divide } from 'firebase/firestore/pipelines';
-
+import { useStore } from '../../store';
 interface IExpensesValues {
   name: string;
   value: string;
@@ -72,6 +72,8 @@ const optionsPaymentMethod = ['Pix', 'Cartão de Crédito', 'Cartão de Débito'
 const optionsCardUsed = ['Nubank', 'Flash', 'XP', 'Itau', 'Mercado Pago', 'Pagbank', 'Outro'];
 
 const Home = () => {
+  const { suggestedNames, addSuggestedName } = useStore();
+
   const {
     control,
     handleSubmit,
@@ -151,6 +153,18 @@ const Home = () => {
 
   return (
     <div>
+      {suggestedNames.map((label) => (
+        <Chip
+          key={label}
+          label={label}
+          style={{ marginRight: 8 }}
+          clickable
+          color='primary'
+          variant='outlined'
+        />
+      ))}
+      <button onClick={() => addSuggestedName(`Nome TESTE`)}>Adicionar Nome</button>
+
       <form onSubmit={handleSubmit(onSubmit)}>
         <Container maxWidth='sm' sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <h1>Organiza Grana</h1>
@@ -167,7 +181,7 @@ const Home = () => {
                   error={!!errors.name}
                   helperText={errors.name?.message}
                 />
-                <div style={{ display: 'flex', gap: 1 }}>
+                <div className='flex gap-4'>
                   {['Aluguel', 'Luz', 'Internet', 'Gasolina'].map((label) => (
                     <Chip
                       key={label}
