@@ -12,6 +12,7 @@ import {
   Radio,
   RadioGroup,
   Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -21,29 +22,13 @@ import {
   TextField,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { createDataFirebase, getDataFirebase, removeDataFirebase } from '../../services/useFirebase';
 import { ModalSuggestionWord } from './components/modal';
-export interface IExpensesValues {
-  name: string;
-  category: string;
-  value: string;
-  paymentMethod: string;
-  cardUsed: string;
-  isShared: boolean;
-}
-
-export interface IExpensesValuesDB extends Omit<IExpensesValues, 'value'> {
-  value: number;
-  sharedValue: number;
-}
-
-export interface IExpensesValuesDBResponse extends IExpensesValuesDB {
-  id: string;
-}
+import { useFirebase } from '../../services/useFirebase';
+import type { IExpensesValues, IExpensesValuesDBResponse } from '../../utils/interfaces';
+import { expensesSchema } from '../../utils/validations';
 
 const initialValues = {
   name: '',
@@ -54,21 +39,13 @@ const initialValues = {
   isShared: false,
 };
 
-const expensesSchema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório'),
-  category: z.string().min(1, 'Categoria é obrigatória'),
-  value: z.string().min(1, 'Valor é obrigatório'),
-  paymentMethod: z.string().min(1, 'Método de pagamento é obrigatório'),
-  cardUsed: z.string().min(1, 'Cartão utilizado é obrigatório'),
-  isShared: z.boolean(),
-});
-
 const optionsCategory = ['Custo Fixo', 'Casamento', 'Entreterimento', 'Restaurante', 'Mercado', 'Gasolina'];
 const optionsPaymentMethod = ['Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Dinheiro'];
 const optionsCardUsed = ['Nubank', 'Flash', 'XP', 'Itau', 'Mercado Pago', 'Pagbank', 'Outro'];
 
 const Home = () => {
   const { suggestedNames } = useStore();
+  const { getDataFirebase, removeDataFirebase, createDataFirebase } = useFirebase();
 
   const {
     control,
@@ -84,7 +61,7 @@ const Home = () => {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [open, setOpen] = useState(false);
 
-  const handleGetData = async () => {
+  const handleGetExpense = async () => {
     const data = await getDataFirebase();
     console.log('data ==> ', data);
 
@@ -93,7 +70,7 @@ const Home = () => {
 
   const handleDeleteExpense = async (id: string) => {
     await removeDataFirebase(id);
-    await handleGetData();
+    await handleGetExpense();
   };
 
   const onSubmit = async (data: IExpensesValues) => {
@@ -104,7 +81,7 @@ const Home = () => {
     };
 
     await createDataFirebase(parsedValue);
-    await handleGetData();
+    await handleGetExpense();
   };
 
   const parseDecimal = (value: string): number => {
@@ -136,17 +113,6 @@ const Home = () => {
 
       <ModalSuggestionWord open={open} setOpen={setOpen} />
 
-      {suggestedNames.map((label) => (
-        <Chip
-          key={label}
-          label={label}
-          style={{ marginRight: 8 }}
-          clickable
-          color='primary'
-          variant='outlined'
-        />
-      ))}
-
       <form onSubmit={handleSubmit(onSubmit)}>
         <Container maxWidth='sm' sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <h1>Organiza Grana</h1>
@@ -164,7 +130,7 @@ const Home = () => {
                   helperText={errors.name?.message}
                 />
                 <div className='flex gap-4'>
-                  {['Aluguel', 'Luz', 'Internet', 'Gasolina'].map((label) => (
+                  {suggestedNames.map((label) => (
                     <Chip
                       key={label}
                       label={label}
@@ -211,7 +177,7 @@ const Home = () => {
                   helperText={errors.value?.message}
                 />
 
-                <div style={{ display: 'flex', gap: 1 }}>
+                {/* <div style={{ display: 'flex', gap: 1 }}>
                   {['30', '50', '100', '200'].map((label) => (
                     <Chip
                       key={label}
@@ -223,7 +189,7 @@ const Home = () => {
                       variant='outlined'
                     />
                   ))}
-                </div>
+                </div> */}
               </>
             )}
           />
@@ -279,13 +245,16 @@ const Home = () => {
           </FormControl>
         </Container>
       </form>
-      <Button variant='contained' sx={{ mt: 2 }} onClick={handleSubmit(onSubmit)}>
-        Salvar
-      </Button>
 
-      <Button variant='contained' sx={{ mt: 2 }} onClick={handleGetData}>
-        Consultar
-      </Button>
+      <Stack direction='row' spacing={2} sx={{ justifyContent: 'center' }}>
+        <Button variant='contained' sx={{ mt: 2 }} onClick={handleSubmit(onSubmit)}>
+          Salvar
+        </Button>
+
+        <Button variant='contained' sx={{ mt: 2 }} onClick={handleGetExpense}>
+          Consultar
+        </Button>
+      </Stack>
 
       <Container sx={{ mt: 4 }}>
         <h2>Despesas Cadastradas</h2>
