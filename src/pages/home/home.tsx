@@ -23,33 +23,32 @@ import {
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { addDoc, collection, deleteDoc, doc, getDocs } from 'firebase/firestore';
-import { db } from '../../firebase';
 import { useCallback, useEffect, useState } from 'react';
-import { divide } from 'firebase/firestore/pipelines';
-import { useStore } from '../../store';
-interface IExpensesValues {
+import { useStore } from '../../store/useStore';
+import { createDataFirebase, getDataFirebase, removeDataFirebase } from '../../services/useFirebase';
+import { ModalSuggestionWord } from './components/modal';
+export interface IExpensesValues {
   name: string;
-  value: string;
   category: string;
+  value: string;
   paymentMethod: string;
   cardUsed: string;
   isShared: boolean;
 }
 
-interface IExpensesValuesDB extends Omit<IExpensesValues, 'value'> {
+export interface IExpensesValuesDB extends Omit<IExpensesValues, 'value'> {
   value: number;
   sharedValue: number;
 }
 
-interface IExpensesValuesDBResponse extends IExpensesValuesDB {
+export interface IExpensesValuesDBResponse extends IExpensesValuesDB {
   id: string;
 }
 
 const initialValues = {
   name: '',
-  value: '',
   category: '',
+  value: '',
   paymentMethod: '',
   cardUsed: '',
   isShared: false,
@@ -57,14 +56,11 @@ const initialValues = {
 
 const expensesSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
-  value: z.string().min(1, 'Valor é obrigatório'),
   category: z.string().min(1, 'Categoria é obrigatória'),
+  value: z.string().min(1, 'Valor é obrigatório'),
   paymentMethod: z.string().min(1, 'Método de pagamento é obrigatório'),
   cardUsed: z.string().min(1, 'Cartão utilizado é obrigatório'),
-  isShared: z
-    .any()
-    .transform((val) => val === true || val === 'true')
-    .default(false),
+  isShared: z.boolean(),
 });
 
 const optionsCategory = ['Custo Fixo', 'Casamento', 'Entreterimento', 'Restaurante', 'Mercado', 'Gasolina'];
@@ -72,7 +68,7 @@ const optionsPaymentMethod = ['Pix', 'Cartão de Crédito', 'Cartão de Débito'
 const optionsCardUsed = ['Nubank', 'Flash', 'XP', 'Itau', 'Mercado Pago', 'Pagbank', 'Outro'];
 
 const Home = () => {
-  const { suggestedNames, addSuggestedName } = useStore();
+  const { suggestedNames } = useStore();
 
   const {
     control,
@@ -86,52 +82,34 @@ const Home = () => {
 
   const [expenseList, setExpenseList] = useState<IExpensesValuesDBResponse[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [open, setOpen] = useState(false);
 
-  const onSubmit = (data: IExpensesValues) => {
+  const handleGetData = async () => {
+    const data = await getDataFirebase();
+    console.log('data ==> ', data);
+
+    setExpenseList(data as IExpensesValuesDBResponse[]);
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    await removeDataFirebase(id);
+    await handleGetData();
+  };
+
+  const onSubmit = async (data: IExpensesValues) => {
     const parsedValue = {
       ...data,
       value: parseDecimal(data.value),
       sharedValue: calculateSharedValue(data),
     };
-    createData(parsedValue);
+
+    await createDataFirebase(parsedValue);
+    await handleGetData();
   };
 
   const parseDecimal = (value: string): number => {
     const parsed = parseFloat(value.replace(',', '.'));
     return isNaN(parsed) ? 0 : parsed;
-  };
-
-  const getData = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'expenses'));
-      const data = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      console.log(data);
-
-      setExpenseList(data as IExpensesValuesDBResponse[]);
-    } catch (error) {
-      console.error('Erro ao buscar dados:', error);
-    }
-  };
-
-  const removeData = async (idDoDocumento: string) => {
-    try {
-      await deleteDoc(doc(db, 'expenses', idDoDocumento));
-      alert('Despesa Excluída!');
-      getData();
-    } catch (error) {
-      console.error('Erro ao excluir dados:', error);
-    }
-  };
-
-  const createData = async (newExpense: IExpensesValuesDB) => {
-    console.log('newExpense  ==> ', newExpense);
-    try {
-      await addDoc(collection(db, 'expenses'), newExpense);
-      alert('Despesa Adicionada!');
-      getData();
-    } catch (error) {
-      console.error('Erro ao adicionar:', error);
-    }
   };
 
   const calculateTotalExpenses = useCallback(() => {
@@ -148,11 +126,16 @@ const Home = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     calculateTotalExpenses();
   }, [calculateTotalExpenses]);
 
   return (
     <div>
+      <Button onClick={() => setOpen(true)}>Open modal</Button>
+
+      <ModalSuggestionWord open={open} setOpen={setOpen} />
+
       {suggestedNames.map((label) => (
         <Chip
           key={label}
@@ -163,7 +146,6 @@ const Home = () => {
           variant='outlined'
         />
       ))}
-      <button onClick={() => addSuggestedName(`Nome TESTE`)}>Adicionar Nome</button>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Container maxWidth='sm' sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -301,26 +283,9 @@ const Home = () => {
         Salvar
       </Button>
 
-      <Button variant='contained' sx={{ mt: 2 }} onClick={getData}>
+      <Button variant='contained' sx={{ mt: 2 }} onClick={handleGetData}>
         Consultar
       </Button>
-
-      {/* <Container maxWidth='sm' sx={{ mt: 4 }}>
-        <h2>Despesas Cadastradas</h2>
-        {expenseList.map((expense) => (
-          <div key={expense.id} style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '8px' }}>
-            <p>
-              <strong>Nome:</strong> {expense.name}
-            </p>
-            <p>
-              <strong>Categoria:</strong> {expense.category}
-            </p>
-            <p>
-              <strong>Valor:</strong> R$ {expense.value}
-            </p>
-          </div>
-        ))}
-      </Container> */}
 
       <Container sx={{ mt: 4 }}>
         <h2>Despesas Cadastradas</h2>
@@ -350,7 +315,7 @@ const Home = () => {
                   <TableCell>{expense.value}</TableCell>
                   <TableCell>{expense.sharedValue}</TableCell>
                   <TableCell>
-                    <Button variant='contained' color='error' onClick={() => removeData(expense.id)}>
+                    <Button variant='contained' color='error' onClick={() => handleDeleteExpense(expense.id)}>
                       Excluir
                     </Button>
                   </TableCell>
