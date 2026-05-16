@@ -1,27 +1,4 @@
-import {
-  Button,
-  Chip,
-  Container,
-  FormControl,
-  FormControlLabel,
-  FormHelperText,
-  FormLabel,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Radio,
-  RadioGroup,
-  Select,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-} from '@mui/material';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../../store/useStore';
@@ -29,6 +6,11 @@ import { ModalSuggestionWord } from './components/modal';
 import { useFirebase } from '../../services/useFirebase';
 import type { IExpensesValues, IExpensesValuesDBResponse } from '../../utils/interfaces';
 import { expensesSchema } from '../../utils/validations';
+import { Header } from '../../components/ui/Header';
+import { StatsCards } from '../../components/ui/StatsCards';
+import { ExpenseForm } from '../../components/ui/ExpenseForm';
+import { ExpenseTable } from '../../components/ui/ExpenseTable';
+import { Settings } from 'lucide-react';
 
 const initialValues = {
   name: '',
@@ -39,10 +21,6 @@ const initialValues = {
   isShared: false,
 };
 
-const optionsCategory = ['Custo Fixo', 'Casamento', 'Entreterimento', 'Restaurante', 'Mercado', 'Gasolina'];
-const optionsPaymentMethod = ['Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Dinheiro'];
-const optionsCardUsed = ['Nubank', 'Flash', 'XP', 'Itau', 'Mercado Pago', 'Pagbank', 'Outro'];
-
 const Home = () => {
   const { suggestedNames } = useStore();
   const { getDataFirebase, removeDataFirebase, createDataFirebase } = useFirebase();
@@ -50,6 +28,7 @@ const Home = () => {
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<IExpensesValues>({
     defaultValues: { ...initialValues },
@@ -59,12 +38,12 @@ const Home = () => {
 
   const [expenseList, setExpenseList] = useState<IExpensesValuesDBResponse[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalShared, setTotalShared] = useState(0);
   const [open, setOpen] = useState(false);
 
   const handleGetExpense = async () => {
     const data = await getDataFirebase();
     console.log('data ==> ', data);
-
     setExpenseList(data as IExpensesValuesDBResponse[]);
   };
 
@@ -82,6 +61,7 @@ const Home = () => {
 
     await createDataFirebase(parsedValue);
     await handleGetExpense();
+    reset(initialValues);
   };
 
   const parseDecimal = (value: string): number => {
@@ -89,9 +69,11 @@ const Home = () => {
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  const calculateTotalExpenses = useCallback(() => {
+  const calculateTotals = useCallback(() => {
     const total = expenseList.reduce((acc, expense) => acc + expense.value, 0);
+    const shared = expenseList.reduce((acc, expense) => acc + expense.sharedValue, 0);
     setTotalExpenses(total);
+    setTotalShared(shared);
   }, [expenseList]);
 
   const calculateSharedValue = (expense: IExpensesValues): number => {
@@ -103,199 +85,75 @@ const Home = () => {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    calculateTotalExpenses();
-  }, [calculateTotalExpenses]);
+    calculateTotals();
+  }, [calculateTotals]);
 
   return (
-    <div>
-      <Button onClick={() => setOpen(true)}>Open modal</Button>
-
+    <div className="min-h-screen bg-[var(--background)]">
+      <Header />
+      
       <ModalSuggestionWord open={open} setOpen={setOpen} />
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Container maxWidth='sm' sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <h1>Organiza Grana</h1>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Page Header */}
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--foreground)] sm:text-3xl">
+              Dashboard de Gastos
+            </h1>
+            <p className="mt-1 text-[var(--foreground-muted)]">
+              Acompanhe e gerencie suas despesas mensais
+            </p>
+          </div>
+          <button 
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background-card)] px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--background-elevated)]"
+          >
+            <Settings className="h-4 w-4" />
+            Configurações
+          </button>
+        </div>
 
-          <Controller
-            control={control}
-            name='name'
-            render={({ field }) => (
-              <>
-                <TextField
-                  {...field}
-                  label='Nome'
-                  variant='outlined'
-                  error={!!errors.name}
-                  helperText={errors.name?.message}
-                />
-                <div className='flex gap-4'>
-                  {suggestedNames.map((label) => (
-                    <Chip
-                      key={label}
-                      label={label}
-                      onClick={() => field.onChange(label)}
-                      style={{ marginRight: 8 }}
-                      clickable
-                      color='primary'
-                      variant='outlined'
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+        {/* Stats Cards */}
+        <div className="mb-8">
+          <StatsCards 
+            totalExpenses={totalExpenses}
+            totalShared={totalShared}
+            transactionCount={expenseList.length}
           />
+        </div>
 
-          <FormControl fullWidth error={!!errors.category} style={{ marginTop: '16px' }}>
-            <InputLabel id='category-label'>Categoria</InputLabel>
-            <Controller
+        {/* Main Content */}
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
+          {/* Form */}
+          <div className="xl:col-span-5">
+            <ExpenseForm 
               control={control}
-              name='category'
-              render={({ field }) => (
-                <Select {...field} labelId='category-label' label='Categoria'>
-                  {optionsCategory.map((option) => (
-                    <MenuItem key={option} value={option}>
-                      {option}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
+              errors={errors}
+              suggestedNames={suggestedNames}
+              onSubmit={handleSubmit(onSubmit)}
+              onConsultar={handleGetExpense}
             />
-            {errors.category && <FormHelperText>{errors.category.message}</FormHelperText>}
-          </FormControl>
+          </div>
 
-          <Controller
-            control={control}
-            name='value'
-            render={({ field }) => (
-              <>
-                <TextField
-                  {...field}
-                  label='Valor'
-                  variant='outlined'
-                  error={!!errors.value}
-                  helperText={errors.value?.message}
-                />
-
-                {/* <div style={{ display: 'flex', gap: 1 }}>
-                  {['30', '50', '100', '200'].map((label) => (
-                    <Chip
-                      key={label}
-                      label={label}
-                      onClick={() => field.onChange(label)}
-                      style={{ marginRight: 8 }}
-                      clickable
-                      color='primary'
-                      variant='outlined'
-                    />
-                  ))}
-                </div> */}
-              </>
-            )}
-          />
-
-          <FormControl fullWidth error={!!errors.paymentMethod} style={{ marginTop: '16px' }}>
-            <InputLabel id='paymentMethod-label'>Método de Pagamento</InputLabel>
-            <Controller
-              control={control}
-              name='paymentMethod'
-              render={({ field }) => (
-                <Select {...field} labelId='paymentMethod-label' label='Método de Pagamento'>
-                  {optionsPaymentMethod.map((option) => (
-                    <MenuItem key={option} value={option}>
-                      {option}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
+          {/* Table */}
+          <div className="xl:col-span-7">
+            <ExpenseTable 
+              expenses={expenseList}
+              onDelete={handleDeleteExpense}
             />
-            {errors.paymentMethod && <FormHelperText>{errors.paymentMethod.message}</FormHelperText>}
-          </FormControl>
+          </div>
+        </div>
+      </main>
 
-          <FormControl fullWidth error={!!errors.cardUsed}>
-            <InputLabel id='cardUsed-label'>Cartão Utilizado</InputLabel>
-            <Controller
-              control={control}
-              name='cardUsed'
-              render={({ field }) => (
-                <Select {...field} labelId='cardUsed-label' label='Cartão Utilizado'>
-                  {optionsCardUsed.map((option) => (
-                    <MenuItem key={option} value={option}>
-                      {option}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
-            />
-            {errors.cardUsed && <FormHelperText>{errors.cardUsed.message}</FormHelperText>}
-          </FormControl>
-
-          <FormControl>
-            <FormLabel id='isShared-label'>Compartilhamento</FormLabel>
-            <Controller
-              control={control}
-              name='isShared'
-              render={({ field }) => (
-                <RadioGroup {...field} row>
-                  <FormControlLabel value={true} control={<Radio />} label='Compartilhada' />
-                  <FormControlLabel value={false} control={<Radio />} label='Individual' />
-                </RadioGroup>
-              )}
-            />
-          </FormControl>
-        </Container>
-      </form>
-
-      <Stack direction='row' spacing={2} sx={{ justifyContent: 'center' }}>
-        <Button variant='contained' sx={{ mt: 2 }} onClick={handleSubmit(onSubmit)}>
-          Salvar
-        </Button>
-
-        <Button variant='contained' sx={{ mt: 2 }} onClick={handleGetExpense}>
-          Consultar
-        </Button>
-      </Stack>
-
-      <Container sx={{ mt: 4 }}>
-        <h2>Despesas Cadastradas</h2>
-        <TableContainer component={Paper}>
-          <Table aria-label='tabela de despesas'>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: 'black' }}>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Nome</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Categoria</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Método de Pagamento</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Cartão Utilizado</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Valor (R$)</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Valor Compartilhado (R$)</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ações</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {expenseList.map((expense, idx) => (
-                <TableRow
-                  key={expense.id}
-                  sx={{ backgroundColor: idx % 2 === 0 ? 'background.paper' : '#f5f5f5' }}
-                >
-                  <TableCell>{expense.name}</TableCell>
-                  <TableCell>{expense.category}</TableCell>
-                  <TableCell>{expense.paymentMethod}</TableCell>
-                  <TableCell>{expense.cardUsed}</TableCell>
-                  <TableCell>{expense.value}</TableCell>
-                  <TableCell>{expense.sharedValue}</TableCell>
-                  <TableCell>
-                    <Button variant='contained' color='error' onClick={() => handleDeleteExpense(expense.id)}>
-                      Excluir
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Container>
-
-      <h2>Total de Despesas: R$ {totalExpenses}</h2>
+      {/* Footer */}
+      <footer className="border-t border-[var(--border)] bg-[var(--background-secondary)]">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <p className="text-center text-sm text-[var(--foreground-subtle)]">
+            © 2024 OrganizaGrana. Gerencie suas finanças com inteligência.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
