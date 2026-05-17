@@ -89,34 +89,30 @@ const Home = () => {
   }, [calculateTotals]);
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className='min-h-screen bg-[var(--background)]'>
       <Header />
-      
+
       <ModalSuggestionWord open={open} setOpen={setOpen} />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className='mx-auto px-4 py-8 sm:px-6 lg:px-8'>
         {/* Page Header */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className='mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
           <div>
-            <h1 className="text-2xl font-bold text-[var(--foreground)] sm:text-3xl">
-              Dashboard de Gastos
-            </h1>
-            <p className="mt-1 text-[var(--foreground-muted)]">
-              Acompanhe e gerencie suas despesas mensais
-            </p>
+            <h1 className='text-2xl font-bold text-[var(--foreground)] sm:text-3xl'>Dashboard de Gastos</h1>
+            <p className='mt-1 text-[var(--foreground-muted)]'>Acompanhe e gerencie suas despesas mensais</p>
           </div>
-          <button 
+          <button
             onClick={() => setOpen(true)}
-            className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background-card)] px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--background-elevated)]"
+            className='flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background-card)] px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--background-elevated)]'
           >
-            <Settings className="h-4 w-4" />
+            <Settings className='h-4 w-4' />
             Configurações
           </button>
         </div>
 
         {/* Stats Cards */}
-        <div className="mb-8">
-          <StatsCards 
+        <div className='mb-8'>
+          <StatsCards
             totalExpenses={totalExpenses}
             totalShared={totalShared}
             transactionCount={expenseList.length}
@@ -124,10 +120,10 @@ const Home = () => {
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
+        <div className='grid grid-cols-1 gap-8 xl:grid-cols-12'>
           {/* Form */}
-          <div className="xl:col-span-5">
-            <ExpenseForm 
+          <div className='xl:col-span-5'>
+            <ExpenseForm
               control={control}
               errors={errors}
               suggestedNames={suggestedNames}
@@ -137,19 +133,16 @@ const Home = () => {
           </div>
 
           {/* Table */}
-          <div className="xl:col-span-7">
-            <ExpenseTable 
-              expenses={expenseList}
-              onDelete={handleDeleteExpense}
-            />
+          <div className='xl:col-span-7'>
+            <ExpenseTable expenses={expenseList} onDelete={handleDeleteExpense} />
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--border)] bg-[var(--background-secondary)]">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-[var(--foreground-subtle)]">
+      <footer className='border-t border-[var(--border)] bg-[var(--background-secondary)]'>
+        <div className='mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8'>
+          <p className='text-center text-sm text-[var(--foreground-subtle)]'>
             © 2024 OrganizaGrana. Gerencie suas finanças com inteligência.
           </p>
         </div>
